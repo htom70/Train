@@ -1,0 +1,14 @@
+create table encoded_transaction
+(
+    id               bigint not null auto_increment,
+    card_number      double precision,
+    transaction_type double precision,
+    timestamp        double precision,
+    amount           double precision,
+    currency_name    double precision,
+    response_code    double precision,
+    country_name     double precision,
+    vendor_code      double precision,
+    fraud            int,
+    primary key (id)
+) engine = InnoDB

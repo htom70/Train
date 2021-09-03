@@ -1,0 +1,2 @@
+"INSERT INTO encoded_transaction (card_number,transaction_type,timestamp,amount,currency_name,response_code,country_name,vendor_code,fraud) VALUES" \
+ "(%s,%s,%s,%s,%s,%s,%s,%s,%s)"
