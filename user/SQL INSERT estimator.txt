@@ -1,0 +1,2 @@
+"INSERT INTO estimator (estimatorObject) VALUES" \
+ "(%s)"

@@ -135,10 +135,19 @@ def getModels():
 #     connection.close()
 #
 #
-def fitAndStoreEstimator(list):
+def persistEstmator(dataBaseName, estimatorName, estimatorContainer):
+    connection = database.getConnection()
+    cursor = connection.cursor()
+    sqlUseQuery = "USE " + dataBaseName
+    cursor.execute(sqlUseQuery)
+    file = open("SQL INSERT estimator.txt", "r")
+    sqlInsertQuery = file.read()
+    cursor.execute(sqlInsertQuery, estimatorContainer)
+    connection.commit()
+    logging.info(f"Estimator: {estimatorName} persisted in database")
+
+def fitAndStoreEstimator(parameters):
     logging.info("Fit process begin")
-    print("Thread")
-    parameters = list[0]
     estimatorStorePath = parameters.get('estimatorStorePath')
     pipelineId = parameters.get('trainTaskId')
     databaseName = parameters.get("databaseName")
@@ -164,9 +173,10 @@ def fitAndStoreEstimator(list):
     pipeline.fit(train_features, train_labels)
     predicted_labels = pipeline.predict(test_features)
     confusionMatrix = confusion_matrix(test_labels, predicted_labels)
-    print(f"Confusion Matrix: {confusionMatrix}")
+    logging.info(f"Confusion Matrix: {confusionMatrix}")
 
     estimatorName = 'estimator_' + str(pipelineId) + '.pickle'
+    logging.info(f"Estimator name: {estimatorName}")
     fullEstimatorName = estimatorStorePath + estimatorName
     filehandler = open(fullEstimatorName, "wb")
     estimatorContainer = dict()
@@ -175,20 +185,8 @@ def fitAndStoreEstimator(list):
     estimatorContainer["pipeline"] = pipeline
     pickle.dump(estimatorContainer, filehandler)
     filehandler.close()
-
-
-def callEncoding(list, queue):
-    dataBaseName = list[0]
-    databaseEncoder = encoding.DataBaseEncoder(logging)
-    databaseEncoder.encode(dataBaseName)
-    queue.put(databaseEncoder)
-
-
-def callFeatureEngineering(list):
-    dataBaseName = list[0]
-    featureEngineer = engineering.FeatureEngineer(logging)
-    featureEngineer.createNewFeatures(dataBaseName)
-
+    logging.info(f"Estimator: {estimatorName} pickled")
+    persistEstmator(databaseName, estimatorName,estimatorContainer)
 
 #     sendTrainMessage(pipelineId)
 #
@@ -264,42 +262,31 @@ def fit():
         expectedVariance = trainParameters[7]
 
         if ifTrainParametersAreProper:
-            with Manager() as manager:
-                dataBaselist = manager.list()
-                dataBaseEncoderContainer = manager.Queue()
-                dataBaselist.append(databaseName)
-                encodeProcess = Process(target=callEncoding, args=(dataBaselist, dataBaseEncoderContainer))
-                encodeProcess.start()
-                encodeProcess.join()
-                dataBaseEncoder = dataBaseEncoderContainer.get()
-                currencyEncoder = dataBaseEncoder.currencyEncoder
-                countryEncoder = dataBaseEncoder.countryEncoder
-                tableName = "encoded_transaction"
-                if feature_engineering_switch == 1:
-                    logging.info("Feature engineering turned on")
-                    featureEngineerProcess = Process(target=callFeatureEngineering, args=(dataBaselist,))
-                    featureEngineerProcess.start()
-                    featureEngineerProcess.join()
-                    tableName = "feature_engineered_transaction"
-                configContainer = config.ConfigContainer()
-                estimatorStorePath = configContainer.estimatorConfigDict.get("path")
-                fitProcessParameter = dict()
-                fitProcessParameter["trainTaskId"] = trainTaskId
-                fitProcessParameter["databaseName"] = databaseName
-                fitProcessParameter["tableName"] = tableName
-                fitProcessParameter["featureSelector"] = featureSelector
-                fitProcessParameter["expectedVariance"] = expectedVariance
-                fitProcessParameter["sampler"] = sampler
-                fitProcessParameter["scaler"] = scaler
-                fitProcessParameter["model"] = model
-                fitProcessParameter["estimatorStorePath"] = estimatorStorePath
-                fitProcessParameter["currencyEncoder"] = currencyEncoder
-                fitProcessParameter["countryEncoder"] = countryEncoder
-                fitParameters = manager.list()
-                fitParameters.append(fitProcessParameter)
-                fitProcess = Process(target=fitAndStoreEstimator, args=(fitParameters,))
-                fitProcess.start()
-                fitProcess.join()
+            databaseEncoder = encoding.DataBaseEncoder(logging)
+            databaseEncoder.encode(databaseName)
+            currencyEncoder=databaseEncoder.currencyEncoder
+            countryEncoder=databaseEncoder.countryEncoder
+            tableName = "encoded_transaction"
+            if feature_engineering_switch == 1:
+                logging.info("Feature engineering turned on")
+                featureEngineer = engineering.FeatureEngineer(logging)
+                featureEngineer.createNewFeatures(databaseName)
+                tableName = "feature_engineered_transaction"
+            configContainer = config.ConfigContainer()
+            estimatorStorePath = configContainer.estimatorConfigDict.get("path")
+            fitProcessParameter = dict()
+            fitProcessParameter["trainTaskId"] = trainTaskId
+            fitProcessParameter["databaseName"] = databaseName
+            fitProcessParameter["tableName"] = tableName
+            fitProcessParameter["featureSelector"] = featureSelector
+            fitProcessParameter["expectedVariance"] = expectedVariance
+            fitProcessParameter["sampler"] = sampler
+            fitProcessParameter["scaler"] = scaler
+            fitProcessParameter["model"] = model
+            fitProcessParameter["estimatorStorePath"] = estimatorStorePath
+            fitProcessParameter["currencyEncoder"] = currencyEncoder
+            fitProcessParameter["countryEncoder"] = countryEncoder
+            fitAndStoreEstimator(fitProcessParameter)
             response = "OK"
         else:
             response = "ERROR"
@@ -318,7 +305,7 @@ def fit():
 
 if __name__ == '__main__':
     print("Kezd")
-    logging.basicConfig(filename='c:/Temp/Train.log', level=logging.INFO)
+    logging.basicConfig(filename='c:/Temp/Train.log', format='%(asctime)s %(levelname)s: %(message)s', level=logging.INFO)
     # app.run(host='127.0.0.1', port=5000)
     app.run(port=8082)
     #     # sendTrainMessage("HELLO")

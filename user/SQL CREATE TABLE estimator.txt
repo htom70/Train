@@ -1,0 +1,6 @@
+create table estimator
+(
+    id                      bigint not null auto_increment,
+    estimatorObject         blob,
+    primary key (id)
+) engine = InnoDB
